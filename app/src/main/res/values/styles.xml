@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <resources>
+        <!-- Theme overlay for AppBar -->
+        <style name="Theme.NavigationDrawerExample.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+            <!-- Tambahkan properti yang Anda perlukan -->
+        </style>
+
+        <!-- Theme overlay for popup menu -->
+        <style name="Theme.NavigationDrawerExample.PopupOverlay" parent="ThemeOverlay.AppCompat.Light">
+            <!-- Tambahkan properti yang Anda perlukan -->
+        </style>
+    </resources>
+
