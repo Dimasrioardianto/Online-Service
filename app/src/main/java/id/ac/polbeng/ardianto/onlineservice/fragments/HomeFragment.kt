@@ -1,5 +1,6 @@
 package id.ac.polbeng.ardianto.onlineservice.fragments
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -8,8 +9,10 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import id.ac.polbeng.ardianto.onlineservice.activities.DetailJasaActivity
 import id.ac.polbeng.ardianto.onlineservice.adapters.JasaAdapter
 import id.ac.polbeng.ardianto.onlineservice.databinding.FragmentHomeBinding
+import id.ac.polbeng.ardianto.onlineservice.helpers.Config
 import id.ac.polbeng.ardianto.onlineservice.models.Jasa
 import id.ac.polbeng.ardianto.onlineservice.models.JasaResponse
 import id.ac.polbeng.ardianto.onlineservice.services.JasaService
@@ -77,7 +80,11 @@ class HomeFragment : Fragment() {
                         jasaAdapter.setOnItemClickCallback(object :
                             JasaAdapter.OnItemClickCallback {
                             override fun onItemClicked(data: Jasa) {
-                                Toast.makeText(context, "Service clicked ${data.namaJasa}", Toast.LENGTH_SHORT).show()
+                                //Toast.makeText(context, "Service clicked ${data.namaJasa}", Toast.LENGTH_SHORT).show()
+                                val intent = Intent(context,
+                                    DetailJasaActivity::class.java)
+                                intent.putExtra(Config.EXTRA_JASA, data)
+                                startActivity(intent)
                             }
                         })
                     }
