@@ -10,8 +10,10 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import id.ac.polbeng.ardianto.onlineservice.activities.AddJasaActivity
+import id.ac.polbeng.ardianto.onlineservice.activities.EditJasaActivity
 import id.ac.polbeng.ardianto.onlineservice.adapters.JasaAdapter
 import id.ac.polbeng.ardianto.onlineservice.databinding.FragmentServiceBinding
+import id.ac.polbeng.ardianto.onlineservice.helpers.Config
 import id.ac.polbeng.ardianto.onlineservice.helpers.SessionHandler
 import id.ac.polbeng.ardianto.onlineservice.models.Jasa
 import id.ac.polbeng.ardianto.onlineservice.models.JasaResponse
@@ -80,7 +82,15 @@ class ServiceFragment : Fragment() {
                         val daftarJasa = jasaResponse.data
                         Log.d("ServiceFragment", "Received data: $daftarJasa")
                         jasaAdapter.setData(daftarJasa)
-                        setupItemClickCallback()
+                        jasaAdapter.setOnItemClickCallback(object :
+                            JasaAdapter.OnItemClickCallback {
+                            override fun onItemClicked(data: Jasa) {
+                                val intent = Intent(context,
+                                    EditJasaActivity::class.java)
+                                intent.putExtra(Config.EXTRA_JASA, data)
+                                startActivity(intent)
+                            }
+                        })
                     } else {
                         showError("Gagal menampilkan data jasa: ${jasaResponse.message}")
                     }

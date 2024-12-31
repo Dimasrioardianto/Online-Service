@@ -3,6 +3,7 @@ package id.ac.polbeng.ardianto.onlineservice.activities
 import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,34 +22,28 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import pub.devrel.easypermissions.EasyPermissions
 import retrofit2.Call
+import retrofit2.Callback
 import retrofit2.Response
 import java.io.File
 
 class AddJasaActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityAddJasaBinding
-    private val pickImage = 100
 
-    private lateinit var imageFile: MultipartBody.Part
+    private lateinit var binding: ActivityAddJasaBinding
+    private var imageFile: MultipartBody.Part? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAddJasaBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        val session = SessionHandler(applicationContext)
-        val user: User? = session.getUser()
-        binding.btnCari.setOnClickListener {
-            if(EasyPermissions.hasPermissions(this,android.Manifest.permission.READ_EXTERNAL_STORAGE)){
-                ImagePicker.with(this)
-                    .compress(1024)
 
-                    .maxResultSize(1080, 1080)
-                    .createIntent { intent ->
-                        startForProfileImageResult.launch(intent)
-                    }
-            }else{
-                EasyPermissions.requestPermissions(this,"This application need your permission to access photo gallery.", pickImage,
-                        android.Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
+        val sessionHandler = SessionHandler(applicationContext)
+        val currentUser: User? = sessionHandler.getUser()
+
+        binding.btnCari.setOnClickListener {
+            ImagePicker.with(this)
+                .compress(1024)
+                .maxResultSize(1080, 1080)
+                .createIntent { intent -> imagePickerResult.launch(intent) }
         }
 
         binding.btnAddJasa.setOnClickListener {
@@ -56,103 +51,96 @@ class AddJasaActivity : AppCompatActivity() {
             val deskripsiSingkat = binding.etDeskripsiSingkat.text.toString()
             val uraianDeskripsi = binding.etUraianDeskripsi.text.toString()
             val rating = binding.tvRating.text.toString()
-            val gambar = binding.tvImage.text.toString()
 
-            if(TextUtils.isEmpty(namaJasa)){
-                binding.etNamaJasa.setError("Nama jasa tidak boleh kosong!")
-                        binding.etNamaJasa.requestFocus()
+            if (validasiInput(namaJasa, deskripsiSingkat, uraianDeskripsi, rating)) {
+                val jasaService = ServiceBuilder.buildService(JasaService::class.java)
+
+                val namaJasaBody = namaJasa.toRequestBody("multipart/form-data".toMediaTypeOrNull())
+                val deskripsiSingkatBody = deskripsiSingkat.toRequestBody("multipart/form-data".toMediaTypeOrNull())
+                val uraianDeskripsiBody = uraianDeskripsi.toRequestBody("multipart/form-data".toMediaTypeOrNull())
+                val ratingBody = rating.toRequestBody("multipart/form-data".toMediaTypeOrNull())
+                val userIdBody = currentUser?.id.toString().toRequestBody("multipart/form-data".toMediaTypeOrNull())
+
+                if (imageFile == null) {
+                    Toast.makeText(this, "Pilih gambar terlebih dahulu!", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
-            }
-
-            if(TextUtils.isEmpty(deskripsiSingkat)){
-                binding.etDeskripsiSingkat.setError("Deskripsi singkat tidak boleh kosong!")
-                        binding.etDeskripsiSingkat.requestFocus()
-                    return@setOnClickListener
-            }
-
-            if(TextUtils.isEmpty(uraianDeskripsi)){
-                binding.etUraianDeskripsi.setError("Uraian deskripsi tidak boleh kosong!")
-                        binding.etUraianDeskripsi.requestFocus()
-                    return@setOnClickListener
-            }
-
-            if(gambar.equals("Pilih sebuah gambar!")){
-                Toast.makeText(applicationContext, "Silahkan pilih satu gambar, klik button Cari disamping!", Toast.LENGTH_SHORT).show()
-                        binding.btnCari.requestFocus()
-                    return@setOnClickListener
-            }
-
-            val reqIdUser = user?.id.toString().toRequestBody("multipart/form- data".toMediaTypeOrNull())
-            val reqNamaJasa = namaJasa.toRequestBody("multipart/form￾data".toMediaTypeOrNull())
-            val reqDeskripsiSingkat = deskripsiSingkat.toRequestBody("multipart/form-data".toMediaTypeOrNull())
-            val reqUraianDeskripsi = uraianDeskripsi.toRequestBody("multipart/form-data".toMediaTypeOrNull())
-            val reqRating = rating.toRequestBody("multipart/form￾data".toMediaTypeOrNull())
-            val reqGambar = gambar.toRequestBody("multipart/form￾data".toMediaTypeOrNull())
-            val jasaService = ServiceBuilder.buildService(JasaService::class.java)
-            val requestCall: Call<DefaultResponse> = jasaService.addJasa( imageFile, reqIdUser, reqNamaJasa, reqDeskripsiSingkat,
-                reqUraianDeskripsi, reqRating, reqGambar)
-
-            showLoading(true)
-            requestCall.enqueue(object :
-                retrofit2.Callback<DefaultResponse>{
-                override fun onFailure(call: Call<DefaultResponse>, t:
-                Throwable) {
-                    showLoading(false)
-                    Toast.makeText(this@AddJasaActivity, "Error terjadi ketika sedang menambahkan jasa: " + t.toString(),
-                    Toast.LENGTH_LONG).show()
                 }
 
-                override fun onResponse(
-                    call: Call<DefaultResponse>,
-                    response: Response<DefaultResponse>
-                ) {
-                    showLoading(false)
-                    if(!response.body()?.error!!) {
-                        finish()
-                        Toast.makeText(this@AddJasaActivity,
-                            response.body()?.message, Toast.LENGTH_LONG).show()
-                    }else{
-                        Toast.makeText(this@AddJasaActivity, "Gagal menambahkan jasa: " + response.body()?.message, Toast.LENGTH_LONG).show()
+                val requestCall = jasaService.addJasa(
+                    imageFile!!,
+                    userIdBody,
+                    namaJasaBody,
+                    deskripsiSingkatBody,
+                    uraianDeskripsiBody,
+                    ratingBody
+                )
+
+                requestCall.enqueue(object : Callback<DefaultResponse> {
+                    override fun onResponse(call: Call<DefaultResponse>, response: Response<DefaultResponse>) {
+                        if (response.body()?.error == false) {
+                            Toast.makeText(this@AddJasaActivity, "Jasa berhasil ditambahkan!", Toast.LENGTH_SHORT).show()
+                            finish()
+                        } else {
+                            Toast.makeText(
+                                this@AddJasaActivity,
+                                "Gagal menambahkan jasa: ${response.body()?.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
-                }
-            })
+
+                    override fun onFailure(call: Call<DefaultResponse>, t: Throwable) {
+                        Toast.makeText(this@AddJasaActivity, "Terjadi kesalahan: ${t.message}", Toast.LENGTH_LONG).show()
+                    }
+                })
+            }
         }
     }
 
-    private val startForProfileImageResult =
+    private val imagePickerResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK && result.data != null) {
+                val imageUri: Uri? = result.data?.data
+                Glide.with(this).load(imageUri).into(binding.imgJasa)
 
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()
-        ) {
-            val resultCode = it.resultCode
-            val data = it.data
-            if(resultCode == RESULT_OK && data != null){
-                val imageUri: Uri? = data.data
-                Glide.with(this)
-                    .load(imageUri)
-                    .into(binding.imgJasa)
-                binding.tvImage.text = imageUri?.lastPathSegment
-
-                val file = File(imageUri?.path)
-
-                val requestBody = file.asRequestBody("multipart/formdata".toMediaTypeOrNull())
-                imageFile = MultipartBody.Part.createFormData("file",
-                    file.name, requestBody)
-            } else if (it.resultCode == ImagePicker.RESULT_ERROR) {
-                Toast.makeText(this, ImagePicker.getError(data),
-                    Toast.LENGTH_SHORT).show()
+                val file = File(imageUri?.path ?: "")
+                val requestBody = file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
+                imageFile = MultipartBody.Part.createFormData("file", file.name, requestBody)
+            } else if (result.resultCode == ImagePicker.RESULT_ERROR) {
+                Toast.makeText(this, ImagePicker.getError(result.data), Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Task Cancelled",
-                    Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Proses dibatalkan", Toast.LENGTH_SHORT).show()
             }
         }
 
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
-    }
-
-    private fun showLoading(isLoading: Boolean) {
-        binding.progressBar.visibility = if (isLoading) View.VISIBLE else
-            View.GONE
+    private fun validasiInput(
+        namaJasa: String,
+        deskripsiSingkat: String,
+        uraianDeskripsi: String,
+        rating: String
+    ): Boolean {
+        return when {
+            namaJasa.isEmpty() -> {
+                binding.etNamaJasa.error = "Nama jasa tidak boleh kosong!"
+                false
+            }
+            deskripsiSingkat.isEmpty() -> {
+                binding.etDeskripsiSingkat.error = "Deskripsi singkat tidak boleh kosong!"
+                false
+            }
+            uraianDeskripsi.isEmpty() -> {
+                binding.etUraianDeskripsi.error = "Uraian deskripsi tidak boleh kosong!"
+                false
+            }
+            rating.isEmpty() -> {
+                Toast.makeText(this, "Rating tidak boleh kosong!", Toast.LENGTH_SHORT).show()
+                false
+            }
+            imageFile == null -> {
+                Toast.makeText(this, "Pilih gambar terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                false
+            }
+            else -> true
+        }
     }
 }
