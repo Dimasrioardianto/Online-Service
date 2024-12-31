@@ -127,7 +127,7 @@ class EditJasaActivity : AppCompatActivity() {
             builder.setIcon(R.drawable.baseline_delete_forever_24)
             builder.setPositiveButton("Ya") { dialog, _ ->
                 val jasaService: JasaService = ServiceBuilder.buildService(JasaService::class.java)
-                val requestCall: Call<DefaultResponse> = jasaService.deleteService(receiveJasa?.idJasa!!)
+                val requestCall: Call<DefaultResponse> = jasaService.deleteService(receiveJasa?.idJasa!!)//Disini saya merubah dari deletejasa menjadi deleteservice
                 requestCall.enqueue(object : retrofit2.Callback<DefaultResponse> {
                     override fun onFailure(call: Call<DefaultResponse>, t: Throwable) {
                         Toast.makeText(
